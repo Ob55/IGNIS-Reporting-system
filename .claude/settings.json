@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Read(//tmp/**)",
+      "Bash(mongod --version:*)",
+      "Bash(mongosh:*)",
+      "Bash(node -c index.js)",
+      "Bash(node -c models/index.js)",
+      "Bash(node -c middleware/auth.js)",
+      "Bash(node -c routes/auth.js)",
+      "Bash(node -c routes/dashboard.js)",
+      "Bash(node -c routes/form.js)",
+      "Bash(node -c cron_friday.js)",
+      "Bash(node -c cron_monday.js)"
+    ]
+  }
+}
