@@ -4,19 +4,28 @@ const path = require('path');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const cron = require('node-cron');
 const { TeamMember, Submission } = require('./models');
+const { runFridayCron } = require('../agent/cron_friday');
+const { runMondayCron } = require('../agent/cron_monday');
 
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
 const formRoutes = require('./routes/form');
 
 const app = express();
+const isProd = process.env.NODE_ENV === 'production';
 
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+if (isProd) {
+  // In production, client is served from same origin — no CORS needed
+  app.use(cors());
+} else {
+  app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+}
 app.use(express.json());
 
-// Routes
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/form', formRoutes);
@@ -26,6 +35,15 @@ app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+// Serve React static build in production
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(clientDist));
+
+// SPA fallback — all non-API routes serve index.html (React Router handles them)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'));
+});
 
 // Bootstrap admin account
 async function ensureAdmin() {
@@ -59,6 +77,22 @@ mongoose.connect(process.env.MONGO_URI)
       // Index may not exist, that's fine
     }
     await ensureAdmin();
+
+    // Schedule cron jobs (times in UTC)
+    // Friday 12:00 UTC = 3:00 PM EAT — send form emails to team
+    cron.schedule('0 12 * * 5', () => {
+      console.log('[Cron] Triggering Friday email job...');
+      runFridayCron();
+    });
+
+    // Monday 03:00 UTC = 6:00 AM EAT — send notification to leadership
+    cron.schedule('0 3 * * 1', () => {
+      console.log('[Cron] Triggering Monday notification job...');
+      runMondayCron();
+    });
+
+    console.log('✅ Cron jobs scheduled (Fri 12:00 UTC, Mon 03:00 UTC)');
+
     app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   })
   .catch(err => {
