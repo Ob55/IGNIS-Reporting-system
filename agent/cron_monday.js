@@ -1,12 +1,12 @@
-const nodemailer = require('nodemailer');
 const mongoose = require('mongoose');
+const { sendEmail } = require('../server/utils/email');
 
 // ── Leadership Emails ─────────────────────────────────────────────────────
-// These people receive the Monday notification email.
+// These people receive the Saturday notification email.
 // Uncomment/add leaders as needed.
 const LEADERSHIP_EMAILS = [
-  // 'posogo@ignis-innovation.com',
-  // 'dnderitu@ignis-innovation.com',
+  'posogo@ignis-innovation.com',
+  'dnderitu@ignis-innovation.com',
   'brian55mwangi@gmail.com',
   // 'cwilson@ignis-innovation.com',
 ];
@@ -55,22 +55,13 @@ function getCurrentWeekId() {
   return `W${String(weekNum).padStart(2, '0')}-${now.getFullYear()}`;
 }
 
-function getTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
-}
-
 async function runMondayCron() {
-  console.log('[Monday Cron] Sending report notification to leadership...');
+  console.log('[Saturday Cron] Sending report notification to leadership...');
 
   try {
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(process.env.MONGO_URI);
-      console.log('[Monday Cron] MongoDB connected');
+      console.log('[Saturday Cron] MongoDB connected');
     }
 
     const Sub = getSubmissionModel();
@@ -92,14 +83,15 @@ async function runMondayCron() {
 
     const dashboardUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard`;
 
-    console.log(`[Monday Cron] Week: ${weekId} | Team: ${totalMembers} | Submitted: ${totalSubmitted} | Missing: ${totalMissing}`);
+    console.log(`[Saturday Cron] Week: ${weekId} | Team: ${totalMembers} | Submitted: ${totalSubmitted} | Missing: ${totalMissing}`);
 
-    // Email notification to all leadership
-    const transporter = getTransporter();
+    // Email notification to all leadership via Resend API
+    let sentCount = 0;
     for (const leaderEmail of LEADERSHIP_EMAILS) {
+      // Delay 1s between emails to avoid Resend rate limit (2 req/s)
+      if (sentCount > 0) await new Promise(r => setTimeout(r, 1000));
       try {
-        await transporter.sendMail({
-          from: `"Ignis Innovation" <${process.env.SMTP_USER}>`,
+        await sendEmail({
           to: leaderEmail,
           subject: `New Weekly Reports Submitted — ${weekId} | Ignis Innovation`,
           html: `
@@ -124,15 +116,17 @@ async function runMondayCron() {
             </div>
           `,
         });
-        console.log(`[Monday Cron] ✅ Notification emailed to ${leaderEmail}`);
+        console.log(`[Saturday Cron] ✅ Notification emailed to ${leaderEmail}`);
+        sentCount++;
       } catch (emailErr) {
-        console.error(`[Monday Cron] ❌ Failed to email ${leaderEmail}:`, emailErr.message);
+        console.error(`[Saturday Cron] ❌ Failed to email ${leaderEmail}:`, emailErr.message);
+        sentCount++;
       }
     }
 
-    console.log('[Monday Cron] Done.');
+    console.log('[Saturday Cron] Done.');
   } catch (err) {
-    console.error('[Monday Cron] Error:', err.message);
+    console.error('[Saturday Cron] Error:', err.message);
   }
 }
 

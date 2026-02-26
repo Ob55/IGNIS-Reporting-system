@@ -78,20 +78,20 @@ mongoose.connect(process.env.MONGO_URI)
     }
     await ensureAdmin();
 
-    // Schedule cron jobs (times in UTC)
-    // Friday 12:00 UTC = 3:00 PM EAT — send form emails to team
-    cron.schedule('0 12 * * 5', () => {
+    // Schedule cron jobs (times in UTC; EAT = UTC+3)
+    // Friday 00:00 UTC = 3:00 AM EAT — send form emails to team
+    cron.schedule('0 0 * * 5', () => {
       console.log('[Cron] Triggering Friday email job...');
       runFridayCron();
     });
 
-    // Monday 03:00 UTC = 6:00 AM EAT — send notification to leadership
-    cron.schedule('0 3 * * 1', () => {
-      console.log('[Cron] Triggering Monday notification job...');
+    // Saturday 15:00 UTC = 6:00 PM EAT — send notification to leadership
+    cron.schedule('0 15 * * 6', () => {
+      console.log('[Cron] Triggering Saturday notification job...');
       runMondayCron();
     });
 
-    console.log('✅ Cron jobs scheduled (Fri 12:00 UTC, Mon 03:00 UTC)');
+    console.log('✅ Cron jobs scheduled (Fri 00:00 UTC, Sat 15:00 UTC)');
 
     app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   })

@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const nodemailer = require('nodemailer');
+const { sendEmail } = require('../utils/email');
 const { TeamMember } = require('../models');
 const { verifyToken, adminOnly } = require('../middleware/auth');
 
@@ -14,15 +14,6 @@ function signToken(member) {
     process.env.JWT_SECRET,
     { expiresIn: '12h' }
   );
-}
-
-function getTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
 }
 
 // POST /api/auth/login
@@ -116,9 +107,7 @@ router.post('/members', verifyToken, adminOnly, async (req, res) => {
 
     // Send setup email
     try {
-      const transporter = getTransporter();
-      await transporter.sendMail({
-        from: `"Ignis Innovation" <${process.env.SMTP_USER}>`,
+      await sendEmail({
         to: member.email,
         subject: 'Welcome to Ignis Innovation — Set Up Your Account',
         html: `
@@ -165,9 +154,7 @@ router.post('/resend-setup', verifyToken, adminOnly, async (req, res) => {
     const setupLink = `${process.env.CLIENT_URL}/setup-password?token=${setupToken}`;
 
     try {
-      const transporter = getTransporter();
-      await transporter.sendMail({
-        from: `"Ignis Innovation" <${process.env.SMTP_USER}>`,
+      await sendEmail({
         to: member.email,
         subject: 'Ignis Innovation — New Setup Link',
         html: `

@@ -1,18 +1,19 @@
 const { v4: uuidv4 } = require('uuid');
 const mongoose = require('mongoose');
-const nodemailer = require('nodemailer');
+const { sendEmail } = require('../server/utils/email');
 
 // ── Team Members ──────────────────────────────────────────────────────────
 // These are the people who receive the weekly form email.
 // Uncomment/add members as needed.
 const members = [
-  // { firstName: 'Lily',      lastName: 'Ronoh',   email: 'lronoh@ignis-innovation.com' },
-  // { firstName: 'Elizabeth', lastName: 'Ooro',    email: 'eooro@ignis-innovation.com' },
-  // { firstName: 'Wilson',    lastName: 'Muthui',  email: 'wmuthui@ignis-innovation.com' },
+  { firstName: 'Lily',      lastName: 'Ronoh',   email: 'lronoh@ignis-innovation.com' },
+  { firstName: 'Elizabeth', lastName: 'Ooro',    email: 'eooro@ignis-innovation.com' },
+  { firstName: 'Wilson',    lastName: 'Muthui',  email: 'wmuthui@ignis-innovation.com' },
   { firstName: 'Brian',     lastName: 'Mwangi',  email: 'bmwangi@ignis-innovation.com' },
+  { firstName: 'Curtis',    lastName: 'Wilson',  email: 'cwilson@ignis-innovation.com' },
+
 //  { firstName: 'Alvin',     lastName: 'kyalo',  email: 'mr.amok55@gmail.com' },
 
-  // { firstName: 'Curtis',    lastName: 'Wilson',  email: 'cwilson@ignis-innovation.com' },
   // ── Add more team members below ──────────────────────────────────────
   // { firstName: 'Jane', lastName: 'Doe', email: 'jdoe@ignis-innovation.com' },
 ];
@@ -44,24 +45,15 @@ function getCurrentWeekId() {
   return `W${String(weekNum).padStart(2, '0')}-${now.getFullYear()}`;
 }
 
-function getNextMondayExpiry() {
+function getSaturdayNoonExpiry() {
   const now = new Date();
-  const day = now.getUTCDay();
-  let daysUntilMon = (8 - day) % 7;
-  if (daysUntilMon === 0) daysUntilMon = 7;
-  const monday = new Date(now);
-  monday.setUTCDate(monday.getUTCDate() + daysUntilMon);
-  monday.setUTCHours(3, 0, 0, 0); // 6:00 AM EAT = 3:00 AM UTC
-  return monday;
-}
-
-function getTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
+  const day = now.getUTCDay(); // 0=Sun,1=Mon,...5=Fri,6=Sat
+  let daysUntilSat = (6 - day + 7) % 7;
+  if (daysUntilSat === 0) daysUntilSat = 7;
+  const saturday = new Date(now);
+  saturday.setUTCDate(saturday.getUTCDate() + daysUntilSat);
+  saturday.setUTCHours(9, 0, 0, 0); // 12:00 PM EAT = 9:00 AM UTC
+  return saturday;
 }
 
 async function runFridayCron() {
@@ -76,15 +68,19 @@ async function runFridayCron() {
 
     const FT = getFormTokenModel();
     const weekId = getCurrentWeekId();
-    const expiresAt = getNextMondayExpiry();
+    const expiresAt = getSaturdayNoonExpiry();
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 
     console.log(`[Friday Cron] Week: ${weekId} | ${members.length} team members`);
 
-    const transporter = getTransporter();
     let sent = 0;
 
-    for (const m of members) {
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i];
+
+      // Delay 1s between emails to avoid Resend rate limit (2 req/s)
+      if (i > 0) await new Promise(r => setTimeout(r, 1000));
+
       // Check if token already exists for this member+week
       let existing = await FT.findOne({ email: m.email.toLowerCase(), weekId, used: false });
       let formUrl;
@@ -105,12 +101,11 @@ async function runFridayCron() {
         formUrl = `${clientUrl}/report-form?token=${token}`;
       }
 
-      // Send email
+      // Send email via Resend API
       try {
-        await transporter.sendMail({
-          from: `"Ignis Innovation" <${process.env.SMTP_USER}>`,
+        await sendEmail({
           to: m.email,
-          subject: `Weekly Report — ${weekId} | Please Submit by Monday`,
+          subject: `Weekly Report — ${weekId} | Please Submit by Saturday`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background: #1B6B2F; color: white; padding: 20px; text-align: center;">
@@ -123,7 +118,7 @@ async function runFridayCron() {
                 <p style="text-align: center; margin: 30px 0;">
                   <a href="${formUrl}" style="background: #1B6B2F; color: white; padding: 14px 36px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Submit My Report</a>
                 </p>
-                <p style="color: #666; font-size: 14px;">This link expires Monday at 6:00 AM EAT. Please submit before then.</p>
+                <p style="color: #666; font-size: 14px;">This link expires Saturday at 12:00 PM EAT. Please submit before then.</p>
                 <p style="color: #999; font-size: 12px;">If the button doesn't work, copy this URL:<br>${formUrl}</p>
               </div>
               <div style="background: #f5f5f5; padding: 12px; text-align: center; font-size: 12px; color: #999;">
