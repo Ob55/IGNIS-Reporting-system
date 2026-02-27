@@ -14,7 +14,7 @@ const members = [
 
 //  { firstName: 'Alvin',     lastName: 'kyalo',  email: 'mr.amok55@gmail.com' },
 
-  // ── Add more team members below ──────────────────────────────────────
+  // ── Add more team members below ────────────────────────────────────── here is the 
   // { firstName: 'Jane', lastName: 'Doe', email: 'jdoe@ignis-innovation.com' },
 ];
 
