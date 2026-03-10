@@ -10,7 +10,6 @@
     "dotenv": "^16.4.7",
     "mongoose": "^9.2.1",
     "node-cron": "^3.0.3",
-    "nodemailer": "^6.9.16",
     "uuid": "^9.0.1"
   }
 }

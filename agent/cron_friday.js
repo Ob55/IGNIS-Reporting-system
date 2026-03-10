@@ -11,11 +11,6 @@ const members = [
   { firstName: 'Wilson',    lastName: 'Muthui',  email: 'wmuthui@ignis-innovation.com' },
   { firstName: 'Brian',     lastName: 'Mwangi',  email: 'bmwangi@ignis-innovation.com' },
   { firstName: 'Curtis',    lastName: 'Wilson',  email: 'cwilson@ignis-innovation.com' },
-
-//  { firstName: 'Alvin',     lastName: 'kyalo',  email: 'mr.amok55@gmail.com' },
-
-  // ── Add more team members below ────────────────────────────────────── here is the 
-  // { firstName: 'Jane', lastName: 'Doe', email: 'jdoe@ignis-innovation.com' },
 ];
 
 // ── FormToken schema (matches server) ─────────────────────────────────────
